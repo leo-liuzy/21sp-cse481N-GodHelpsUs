@@ -8,8 +8,9 @@ python run_glue.py --model_name_or_path facebook/mbart-large-cc25 \
        	--label_column_name stars \
 	--do_train \
 	--overwrite_output_dir \
-	--model_parallel \
-	--per_gpu_train_batch_size 8 \
-	--gradient_accumulation_steps 1 \
+	--per_gpu_train_batch_size 1 \
+	--gradient_accumulation_steps 8 \
 	--num_train_epochs 3 \
-	--save_steps -1 
+	--save_steps -1 \
+	--fp16 \
+	--max_seq_length 32 \
