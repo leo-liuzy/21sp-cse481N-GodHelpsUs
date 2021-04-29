@@ -23,7 +23,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
-from datasets import load_dataset, load_metric
+import datasets as datasets_module
+from datasets import load_dataset, load_metric, DatasetDict
 
 import transformers
 from transformers import (
@@ -54,7 +55,7 @@ task_to_keys = {
     "marc": ("sentence", None)
 }
 LANG2LANG_CODE = {v.split("_")[0]: v for v in FAIRSEQ_LANGUAGE_CODES}
-
+MARC_LANGS = ['de', 'en', 'es', 'fr', 'ja', 'zh']
 logger = logging.getLogger(__name__)
 
 
@@ -75,6 +76,13 @@ class DataTrainingArguments:
     label_column_name: str = field(
         default="label",
         metadata={"help": "The name of the label column"},
+    )
+    joint_training: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to pad all samples to `max_seq_length`. "
+                    "If False, will pad the samples dynamically when batching to the maximum length in the batch."
+        },
     )
     max_seq_length: int = field(
         default=128,
@@ -206,10 +214,21 @@ def main():
             "csv", data_files={"train": data_args.train_file, "validation": data_args.validation_file}
         )
     else:
-        # Loading a dataset from local json files
-        datasets = load_dataset(
-            "json", data_files={"train": data_args.train_file, "validation": data_args.validation_file}
-        )
+        if not data_args.joint_training:
+            # Loading a dataset from local json files
+            datasets = load_dataset(
+                "json", data_files={"train": data_args.train_file, "validation": data_args.validation_file}
+            )
+        else:
+            # joint training
+            datasets = {}
+            for lang in MARC_LANGS:
+                datasets[lang] = load_dataset(
+                    "json", data_files={"train": data_args.train_file.format(lang),
+                                        "validation": data_args.validation_file.format(lang)}
+                )
+
+
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
@@ -223,13 +242,16 @@ def main():
             num_labels = 1
     else:
         # Trying to have good defaults here, don't hesitate to tweak to your needs.
-        is_regression = datasets["train"].features[data_args.label_column_name].dtype in ["float32", "float64"]
+        # if not data_args.joint_training:
+        tmp = datasets["en"] if data_args.joint_training else datasets
+
+        is_regression = tmp["train"].features[data_args.label_column_name].dtype in ["float32", "float64"]
         if is_regression:
             num_labels = 1
         else:
             # A useful fast method:
             # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
-            label_list = datasets["train"].unique(data_args.label_column_name)
+            label_list = tmp["train"].unique(data_args.label_column_name)
             label_list.sort()  # Let's sort it for determinism
             num_labels = len(label_list)
 
@@ -260,7 +282,8 @@ def main():
         sentence1_key, sentence2_key = task_to_keys[data_args.task_name]
     else:
         # Again, we try to have some nice defaults but don't hesitate to tweak to your use case.
-        non_label_column_names = [name for name in datasets["train"].column_names if name != data_args.label_column_name]
+        tmp = datasets["en"] if data_args.joint_training else datasets
+        non_label_column_names = [name for name in tmp["train"].column_names if name != data_args.label_column_name]
         if "sentence1" in non_label_column_names and "sentence2" in non_label_column_names:
             sentence1_key, sentence2_key = "sentence1", "sentence2"
         else:
@@ -293,14 +316,15 @@ def main():
         if list(sorted(label_name_to_id.keys())) == list(sorted(label_list)):
             label_to_id = {i: label_name_to_id[label_list[i]] for i in range(num_labels)}
         else:
-            logger.warn(
+            logger.warning(
                 "Your model seems to have been trained with labels, but they don't match the dataset: ",
                 f"model labels: {list(sorted(label_name_to_id.keys()))}, dataset labels: {list(sorted(label_list))}."
                 "\nIgnoring the model labels as a result.",
             )
     elif data_args.task_name is None:
         label_to_id = {v: i for i, v in enumerate(label_list)}
-    idx2token = {v: k for k, v in tokenizer.vocab.items()}
+    # idx2token = {v: k for k, v in tokenizer.vocab.items()}
+
     def preprocess_function(examples):
         # Tokenize the texts
         args = (
@@ -316,8 +340,15 @@ def main():
         if label_to_id is not None and data_args.label_column_name in examples:
             result["label"] = [label_to_id[l] for l in examples[data_args.label_column_name]]
         return result
-
-    datasets = datasets.map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
+    if not data_args.joint_training:
+        datasets = datasets.map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
+    else:
+        for lang in MARC_LANGS:
+            datasets[lang] = datasets[lang].map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
+        merged_train_datasets = datasets_module.concatenate_datasets([dataset["train"] for dataset in datasets.values()])
+        merged_dev_datasets = datasets_module.concatenate_datasets(
+            [dataset["validation"] for dataset in datasets.values()])
+        datasets = DatasetDict(train=merged_train_datasets, validation=merged_dev_datasets)
 
     train_dataset = datasets["train"]
     eval_dataset = datasets["validation_matched" if data_args.task_name == "mnli" else "validation"]
@@ -350,7 +381,8 @@ def main():
             return {"mae": (np.abs(preds - p.label_ids)).mean().item()}
             ### modify from MSE to MAE for MARC ###
         else:
-            return {"accuracy": (preds == p.label_ids).astype(np.float32).mean().item()}
+            return {"accuracy": (preds == p.label_ids).astype(np.float32).mean().item(),
+                    "mae": (np.abs(preds - p.label_ids)).mean().item()}
 
     # Initialize our Trainer
     trainer = Trainer(

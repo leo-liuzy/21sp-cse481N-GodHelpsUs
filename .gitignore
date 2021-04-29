@@ -1,3 +1,4 @@
 amazon-reviews-ml/**
 runs/**
 .idea/**
+**/.DS_Store
