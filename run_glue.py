@@ -419,7 +419,7 @@ def main():
         tasks = [data_args.task_name]
         eval_datasets = [eval_dataset]
         from ipdb import set_trace as bp
-        bp()
+        # bp()
         model.prune_heads({data_args.layer_idx: [data_args.head_idx]})
 
     # Training
