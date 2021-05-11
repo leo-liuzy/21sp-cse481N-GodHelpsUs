@@ -84,6 +84,20 @@ class DataTrainingArguments:
                     "If False, will pad the samples dynamically when batching to the maximum length in the batch."
         },
     )
+    do_prune: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to use pruning (only one at a time)"
+        },
+    )
+    layer_idx: int = field(
+        default=0,
+        metadata={"help": "The index of layer"},
+    )
+    head_idx: int = field(
+        default=0,
+        metadata={"help": "The index of head"},
+    )
     max_seq_length: int = field(
         default=128,
         metadata={
@@ -171,6 +185,9 @@ def main():
             "Use --overwrite_output_dir to overcome."
         )
 
+    if not os.path.exists(training_args.output_dir):
+        os.makedirs(training_args.output_dir)
+
     # Setup logging
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
@@ -228,7 +245,6 @@ def main():
                                         "validation": data_args.validation_file.format(lang)}
                 )
 
-
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
@@ -259,6 +275,7 @@ def main():
     #
     # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
+
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         num_labels=num_labels,
@@ -396,6 +413,12 @@ def main():
         data_collator=default_data_collator if data_args.pad_to_max_length else None,
     )
 
+    if data_args.do_prune:
+        logger.info("*** Purturbing mBART ***")
+        tasks = [data_args.task_name]
+        eval_datasets = [eval_dataset]
+        model.prune_heads({data_args.layer_idx: data_args.head_idx})
+
     # Training
     if training_args.do_train:
         train_result = trainer.train(
@@ -438,6 +461,11 @@ def main():
                     for key, value in sorted(eval_result.items()):
                         logger.info(f"  {key} = {value}")
                         writer.write(f"{key} = {value}\n")
+            output_eval_file = os.path.join(training_args.output_dir, f"eval_results_{task}.json")
+            if trainer.is_world_process_zero():
+                with open(output_eval_file, "w") as writer:
+                    import json
+                    json.dump(eval_result, writer)
 
             eval_results.update(eval_result)
 
