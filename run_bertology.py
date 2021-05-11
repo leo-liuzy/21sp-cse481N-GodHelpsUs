@@ -383,6 +383,7 @@ def main():
     args.task_name = args.task_name.lower()
     if args.task_name not in glue_processors:
         raise ValueError("Task not found: %s" % (args.task_name))
+
     processor = glue_processors[args.task_name]()
     args.output_mode = glue_output_modes[args.task_name]
     label_list = processor.get_labels()
@@ -412,6 +413,10 @@ def main():
         cache_dir=args.cache_dir,
     )
 
+    input_vec = torch.rand(8, 128, 768)
+    model.prune_heads({0: [0]})
+    output = model(inputs_embeds=input_vec)
+
     # Distributed and parallel training
     model.to(args.device)
     if args.local_rank != -1:
@@ -436,7 +441,7 @@ def main():
     )
 
     # Compute head entropy and importance score
-    compute_heads_importance(args, model, eval_dataloader)
+    # compute_heads_importance(args, model, eval_dataloader)
 
     # Try head masking (set heads to zero until the score goes under a threshole)
     # and head pruning (remove masked heads and see the effect on the network)
