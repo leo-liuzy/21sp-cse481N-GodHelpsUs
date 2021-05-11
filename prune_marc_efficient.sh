@@ -5,7 +5,7 @@ model_path=$3
 num_layer=12
 num_head=16
 
-python run_glue.py --model_name_or_path ${model_path} \
+python run_marc_prune.py --model_name_or_path ${model_path} \
     --output_dir ${model_path} \
     --train_file amazon-reviews-ml/train/dataset_${LANG}_train.json \
     --validation_file amazon-reviews-ml/test/dataset_${LANG}_test.json \
