@@ -2,3 +2,5 @@ amazon-reviews-ml/**
 runs/**
 .idea/**
 **/.DS_Store
+**/pytorch_model.bin
+**/sentencepiece.bpe.model
