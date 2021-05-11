@@ -10,6 +10,7 @@ python run_marc_prune.py --model_name_or_path ${model_path} \
     --train_file amazon-reviews-ml/train/dataset_${LANG}_train.json \
     --validation_file amazon-reviews-ml/test/dataset_${LANG}_test.json \
     --label_column_name stars \
+    --language $LANG \
     --num_layer $num_layer \
     --num_head $num_head \
     --do_prune \
