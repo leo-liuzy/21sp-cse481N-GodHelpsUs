@@ -417,7 +417,7 @@ def main():
         logger.info("*** Purturbing mBART ***")
         tasks = [data_args.task_name]
         eval_datasets = [eval_dataset]
-        model.prune_heads({data_args.layer_idx: data_args.head_idx})
+        model.prune_heads({data_args.layer_idx: [data_args.head_idx]})
 
     # Training
     if training_args.do_train:
