@@ -310,12 +310,7 @@ def main():
         max_length = None
 
     # idx2token = {v: k for k, v in tokenizer.vocab.items()}
-    config = AutoConfig.from_pretrained(
-        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-        num_labels=num_labels,
-        finetuning_task=data_args.task_name,
-        cache_dir=model_args.cache_dir,
-    )
+
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -407,6 +402,12 @@ def main():
         heads = range(2 * NUM_HEADS) if layer > NUM_LAYERS - 1 else range(NUM_HEADS)
 
         for head in heads:
+            config = AutoConfig.from_pretrained(
+                model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+                num_labels=num_labels,
+                finetuning_task=data_args.task_name,
+                cache_dir=model_args.cache_dir,
+            )
             model = MBartForSequenceClassification.from_pretrained(
                 model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
