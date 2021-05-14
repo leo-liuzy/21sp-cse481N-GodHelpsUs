@@ -85,6 +85,16 @@ class DataTrainingArguments:
                     "If False, will pad the samples dynamically when batching to the maximum length in the batch."
         },
     )
+    joint_training_test_percentage: float = field(
+        default=1/6,
+        metadata={
+            "help": "Whether to pad all samples to `max_seq_length`. "
+                    "If False, will pad the samples dynamically when batching to the maximum length in the batch."
+        },
+    )
+    language: str = field(
+        default="en"
+    )
     do_prune: bool = field(
         default=False,
         metadata={
@@ -363,6 +373,9 @@ def main():
     else:
         for lang in MARC_LANGS:
             datasets[lang] = datasets[lang].map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
+            datasets[lang].shuffle()
+            datasets[lang]["train"] = datasets[lang].train_test_split(data_args.joint_training_test_percentage)["test"]
+
         merged_train_datasets = datasets_module.concatenate_datasets([dataset["train"] for dataset in datasets.values()])
         merged_dev_datasets = datasets_module.concatenate_datasets(
             [dataset["validation"] for dataset in datasets.values()])
@@ -457,14 +470,14 @@ def main():
         for eval_dataset, task in zip(eval_datasets, tasks):
             eval_result = trainer.evaluate(eval_dataset=eval_dataset)
 
-            output_eval_file = os.path.join(training_args.output_dir, f"eval_results_{task}.txt")
+            output_eval_file = os.path.join(training_args.output_dir, f"eval_results_{data_args.language}.txt")
             if trainer.is_world_process_zero():
                 with open(output_eval_file, "w") as writer:
                     logger.info(f"***** Eval results {task} *****")
                     for key, value in sorted(eval_result.items()):
                         logger.info(f"  {key} = {value}")
                         writer.write(f"{key} = {value}\n")
-            output_eval_file = os.path.join(training_args.output_dir, f"eval_results_{task}.json")
+            output_eval_file = os.path.join(training_args.output_dir, f"eval_results_{data_args.language}.json")
             if trainer.is_world_process_zero():
                 with open(output_eval_file, "w") as writer:
                     import json
