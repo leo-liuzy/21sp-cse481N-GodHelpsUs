@@ -3,6 +3,7 @@ export CUDA_VISIBLE_DEVICES=$1
 LANG=$2
 python run_glue.py --model_name_or_path facebook/mbart-large-cc25 \
 	--output_dir marc_${LANG}_mbart \
+	--joint_training \
 	--train_file amazon-reviews-ml/train/dataset_${LANG}_train.json \
        	--validation_file amazon-reviews-ml/dev/dataset_${LANG}_dev.json \
        	--label_column_name stars \

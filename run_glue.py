@@ -374,7 +374,7 @@ def main():
         for lang in MARC_LANGS:
             datasets[lang] = datasets[lang].map(preprocess_function, batched=True, load_from_cache_file=not data_args.overwrite_cache)
             datasets[lang].shuffle()
-            datasets[lang]["train"] = datasets[lang].train_test_split(data_args.joint_training_test_percentage)["test"]
+            datasets[lang]["train"] = datasets[lang]["train"].train_test_split(data_args.joint_training_test_percentage)["test"]
 
         merged_train_datasets = datasets_module.concatenate_datasets([dataset["train"] for dataset in datasets.values()])
         merged_dev_datasets = datasets_module.concatenate_datasets(

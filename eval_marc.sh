@@ -3,6 +3,7 @@ export CUDA_VISIBLE_DEVICES=$1
 LANG=$2
 model_path=$3
 python run_glue.py --model_name_or_path ${model_path} \
+	--tokenizer_name facebook/mbart-large-cc25 \
 	--output_dir ${model_path} \
 	--train_file amazon-reviews-ml/train/dataset_${LANG}_train.json \
     --validation_file amazon-reviews-ml/test/dataset_${LANG}_test.json \
