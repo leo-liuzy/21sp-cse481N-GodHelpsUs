@@ -17,7 +17,7 @@ python run_marc_prune.py --model_name_or_path ${model_path} \
     --do_prune \
     --do_eval \
     --per_gpu_train_batch_size 128 \
-    --per_gpu_eval_batch_size 128 \
+    --per_gpu_eval_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 3 \
     --save_steps -1 \
