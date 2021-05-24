@@ -1,0 +1,5 @@
+eval_accuracy = 0.47679999470710754
+eval_loss = 1.3399416208267212
+eval_mae = 0.6906
+eval_runtime = 16.9209
+eval_samples_per_second = 295.492
